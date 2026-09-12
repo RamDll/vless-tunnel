@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=VLESS Tunnel
+Comment=Прозрачный туннель VLESS через Xray-core
+Comment[en]=Transparent VLESS tunnel powered by Xray-core
+Exec=vless-tunnel gui
+Icon=vless-tunnel
+Terminal=false
+Categories=Network;Security;
+StartupNotify=true

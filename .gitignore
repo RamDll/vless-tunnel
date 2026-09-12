@@ -1,0 +1,14 @@
+# build artifacts / caches — regenerate via packaging/build-deb.sh and tests/
+.work/
+dist/
+
+# logs from manual testing
+*.log
+
+# personal files unrelated to this project — never commit these
+github-audit-*.md
+router-audit-*.md
+
+# python
+__pycache__/
+*.pyc

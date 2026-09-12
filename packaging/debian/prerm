@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+  remove)
+    if [ -f /etc/vless-tunnel/config.json ] || [ -f /etc/systemd/system/vless-tunnel.service ]; then
+      /usr/bin/vless-tunnel uninstall --yes || true
+    fi
+    ;;
+esac
+
+exit 0
