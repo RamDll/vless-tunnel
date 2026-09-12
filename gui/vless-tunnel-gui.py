@@ -257,7 +257,22 @@ class VlessTunnelWindow(Adw.ApplicationWindow):
                           default_width=400, default_height=467, resizable=False)
 
         toolbar = Adw.ToolbarView()
-        toolbar.add_top_bar(Adw.HeaderBar())
+
+        header = Adw.HeaderBar()
+        # Left-aligned title (icon + name) instead of the default centered
+        # one — pack_start widgets sit at the edge, unlike the title-widget
+        # slot, which libadwaita always centers regardless of its content.
+        title_box = Gtk.Box(spacing=6)
+        title_box.append(Gtk.Image.new_from_icon_name("vless-tunnel"))
+        title_box.append(Gtk.Label(label="VLESS Tunnel", css_classes=["title"]))
+        header.pack_start(title_box)
+        header.set_title_widget(Gtk.Label())  # suppress the default centered title
+
+        menu_btn = Gtk.MenuButton(icon_name="open-menu-symbolic")
+        menu_btn.set_popover(self._build_actions_popover())
+        header.pack_end(menu_btn)
+
+        toolbar.add_top_bar(header)
 
         self.view_stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE)
 
@@ -336,13 +351,6 @@ class VlessTunnelWindow(Adw.ApplicationWindow):
         listbox.append(make_info_row("Автозапуск при загрузке", self.autostart_switch))
 
         root.append(listbox)
-
-        # --- footer ------------------------------------------------------
-        footer = Gtk.Box(spacing=8, halign=Gtk.Align.END)
-        actions_btn = Gtk.MenuButton(label="Действия…", css_classes=["flat"])
-        actions_btn.set_popover(self._build_actions_popover())
-        footer.append(actions_btn)
-        root.append(footer)
 
         self.view_stack.add_named(root, "configured")
 
