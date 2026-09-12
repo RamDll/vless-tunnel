@@ -299,7 +299,7 @@ class VlessTunnelWindow(Adw.ApplicationWindow):
         self.view_stack.add_named(onboarding, "onboarding")
 
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14,
-                        margin_top=14, margin_bottom=14, margin_start=14, margin_end=14)
+                        margin_top=0, margin_bottom=14, margin_start=14, margin_end=14)
 
         # --- hero card -------------------------------------------------
         # (margins go on the inner content, not on `hero` itself, so the
@@ -308,12 +308,8 @@ class VlessTunnelWindow(Adw.ApplicationWindow):
 
         text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, hexpand=True,
                             margin_top=14, margin_bottom=14, margin_start=14)
-        status_row = Gtk.Box(spacing=8)
-        self.dot = Gtk.Box(width_request=10, height_request=10, css_classes=["status-dot"], valign=Gtk.Align.CENTER)
         self.status_label = Gtk.Label(label="Проверяю…", css_classes=["title-3"], xalign=0)
-        status_row.append(self.dot)
-        status_row.append(self.status_label)
-        text_box.append(status_row)
+        text_box.append(self.status_label)
         self.ip_label = Gtk.Label(label="", css_classes=["dim-label", "mono-value"], xalign=0, wrap=True)
         text_box.append(self.ip_label)
 
@@ -537,9 +533,6 @@ class VlessTunnelWindow(Adw.ApplicationWindow):
         self.view_stack.set_visible_child_name("configured")
 
         active = bool(status.get("active"))
-        self.dot.remove_css_class("on")
-        self.dot.remove_css_class("off")
-        self.dot.add_css_class("on" if active else "off")
         self.status_label.set_label("Туннель включён" if active else "Туннель выключен")
 
         self.power_switch.handler_block_by_func(self._on_power_switch)
