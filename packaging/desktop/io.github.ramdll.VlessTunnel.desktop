@@ -9,3 +9,4 @@ Icon=vless-tunnel
 Terminal=false
 Categories=Network;Security;
 StartupNotify=true
+StartupWMClass=io.github.ramdll.VlessTunnel

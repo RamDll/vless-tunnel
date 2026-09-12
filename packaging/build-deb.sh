@@ -44,7 +44,8 @@ install -m 0755 "$ROOT/gui/vless-tunnel-tray.py" "$STAGE/usr/lib/vless-tunnel/vl
 install -m 0755 "$XRAY_BIN" "$STAGE/usr/lib/vless-tunnel/xray"
 
 install -d -m 0755 "$STAGE/usr/share/applications"
-install -m 0644 "$PKG_DIR/desktop/vless-tunnel.desktop" "$STAGE/usr/share/applications/vless-tunnel.desktop"
+install -m 0644 "$PKG_DIR/desktop/io.github.ramdll.VlessTunnel.desktop" \
+  "$STAGE/usr/share/applications/io.github.ramdll.VlessTunnel.desktop"
 
 install -d -m 0755 "$STAGE/usr/lib/systemd/user"
 install -m 0644 "$PKG_DIR/systemd-user/vless-tunnel-tray.service" \

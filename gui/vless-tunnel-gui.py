@@ -12,7 +12,10 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
-APP_ID = "org.vless_tunnel.Gui"
+# Must exactly match the installed .desktop file's basename (see
+# packaging/desktop/) — otherwise GNOME can't find its Icon= entry for the
+# taskbar/alt-tab and falls back to a generated initials icon.
+APP_ID = "io.github.ramdll.VlessTunnel"
 APP_BIN = os.environ.get("VLESS_APP_BIN", "vless-tunnel")
 _DEMO_MODE = os.environ.get("VLESS_GUI_DEMO", "")
 DEMO = _DEMO_MODE in ("1", "onboarding")
