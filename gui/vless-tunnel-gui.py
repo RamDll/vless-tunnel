@@ -185,11 +185,17 @@ class TextViewer(Adw.Window):
             left_margin=12,
             right_margin=12,
         )
-        view.get_buffer().set_text(body or "(пусто)")
+        buf = view.get_buffer()
+        buf.set_text(body or "(пусто)")
         scroller.set_child(view)
         toolbar.set_content(scroller)
         self.set_content(toolbar)
         self.set_title(title)
+
+        # Scroll to the end (most recent log lines) once the view has a real
+        # size to scroll within — doing it immediately has nothing to scroll yet.
+        end_mark = buf.create_mark(None, buf.get_end_iter(), False)
+        GLib.idle_add(lambda: (view.scroll_to_mark(end_mark, 0.0, True, 0.0, 1.0), False)[1])
 
 
 # ---------------------------------------------------------------- set-link
@@ -262,15 +268,15 @@ class VlessTunnelWindow(Adw.ApplicationWindow):
         # Left-aligned title (icon + name) instead of the default centered
         # one — pack_start widgets sit at the edge, unlike the title-widget
         # slot, which libadwaita always centers regardless of its content.
-        title_box = Gtk.Box(spacing=6)
+        title_box = Gtk.Box(spacing=6, margin_start=7)
         title_box.append(Gtk.Image.new_from_icon_name("vless-tunnel"))
         title_box.append(Gtk.Label(label="VLESS Tunnel", css_classes=["title"]))
         header.pack_start(title_box)
         header.set_title_widget(Gtk.Label())  # suppress the default centered title
 
-        menu_btn = Gtk.MenuButton(icon_name="open-menu-symbolic")
-        menu_btn.set_popover(self._build_actions_popover())
-        header.pack_end(menu_btn)
+        self.menu_btn = Gtk.MenuButton(icon_name="open-menu-symbolic")
+        self.menu_btn.set_popover(self._build_actions_popover())
+        header.pack_end(self.menu_btn)
 
         toolbar.add_top_bar(header)
 
@@ -282,7 +288,7 @@ class VlessTunnelWindow(Adw.ApplicationWindow):
             valign=Gtk.Align.CENTER, halign=Gtk.Align.CENTER,
             margin_top=40, margin_bottom=40, margin_start=24, margin_end=24,
         )
-        onb_icon = Gtk.Image.new_from_icon_name("network-vpn-symbolic")
+        onb_icon = Gtk.Image.new_from_icon_name("vless-tunnel")
         onb_icon.set_pixel_size(48)
         onboarding.append(onb_icon)
         onboarding.append(Gtk.Label(label="Туннель ещё не настроен", css_classes=["title-2"]))
@@ -454,16 +460,24 @@ class VlessTunnelWindow(Adw.ApplicationWindow):
         else:
             TextViewer(self, "Не удалось установить", output).present()
 
+    def _run_report(self, args, progress_text, title):
+        self._toast(progress_text)
+        self.menu_btn.set_sensitive(False)
+
+        def done(rc, out, err):
+            self.menu_btn.set_sensitive(True)
+            TextViewer(self, title, out or err).present()
+
+        run_async(args, done)
+
     def action_test(self):
-        self._toast("Проверяю туннель…")
-        run_async(["test"], lambda rc, out, err: TextViewer(self, "Проверка туннеля", out or err).present())
+        self._run_report(["test"], "Проверяю туннель…", "Проверка туннеля")
 
     def action_logs(self):
-        run_async(["logs", "--lines", "200"],
-                   lambda rc, out, err: TextViewer(self, "Журнал", out or err).present())
+        self._run_report(["logs", "--lines", "200"], "Загружаю журнал…", "Журнал")
 
     def action_doctor(self):
-        run_async(["doctor"], lambda rc, out, err: TextViewer(self, "Диагностика", out or err).present())
+        self._run_report(["doctor"], "Собираю диагностику…", "Диагностика")
 
     def action_uninstall(self):
         dlg = Adw.MessageDialog(

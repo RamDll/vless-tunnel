@@ -102,6 +102,11 @@ class Tray:
         open_item.connect("activate", self.on_open_window)
         self.menu.append(open_item)
 
+        self._autostart_guard = True
+        self.autostart_item = Gtk.CheckMenuItem(label="Автозапуск при загрузке")
+        self.autostart_item.connect("toggled", self.on_autostart_toggled)
+        self.menu.append(self.autostart_item)
+
         more_item = Gtk.MenuItem(label="Ещё")
         more_menu = Gtk.Menu()
         for label, args, title in (
@@ -139,8 +144,13 @@ class Tray:
             self.indicator.set_icon_full("vless-tunnel-unknown", "не настроено")
             self.status_label.set_markup("Туннель не настроен")
             self.toggle_item.set_sensitive(False)
+            self.autostart_item.set_sensitive(False)
             return
         self.toggle_item.set_sensitive(True)
+        self.autostart_item.set_sensitive(True)
+        self._autostart_guard = True
+        self.autostart_item.set_active(bool(status.get("enabled")))
+        self._autostart_guard = False
         active = bool(status.get("active"))
         server = status.get("server", "")
         if active:
@@ -182,6 +192,11 @@ class Tray:
             run_async(args, done)
 
         return handler
+
+    def on_autostart_toggled(self, item):
+        if self._autostart_guard:
+            return
+        run_async(["autostart", "on" if item.get_active() else "off"], lambda *_a: None, escalate=True)
 
     def on_open_window(self, _item):
         # The main GUI is a single-instance Adw.Application: if it's already
