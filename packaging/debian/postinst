@@ -30,7 +30,12 @@ case "$1" in
           "XDG_RUNTIME_DIR='$runtime_dir' DBUS_SESSION_BUS_ADDRESS='unix:path=$runtime_dir/bus' systemctl --user daemon-reload" \
           >/dev/null 2>&1 || true
         su -s /bin/sh "$user" -c \
-          "XDG_RUNTIME_DIR='$runtime_dir' DBUS_SESSION_BUS_ADDRESS='unix:path=$runtime_dir/bus' systemctl --user enable --now vless-tunnel-tray.service" \
+          "XDG_RUNTIME_DIR='$runtime_dir' DBUS_SESSION_BUS_ADDRESS='unix:path=$runtime_dir/bus' systemctl --user enable vless-tunnel-tray.service" \
+          >/dev/null 2>&1 || true
+        # restart (not just start) so an upgrade's new code takes effect
+        # immediately instead of waiting for the next login
+        su -s /bin/sh "$user" -c \
+          "XDG_RUNTIME_DIR='$runtime_dir' DBUS_SESSION_BUS_ADDRESS='unix:path=$runtime_dir/bus' systemctl --user restart vless-tunnel-tray.service" \
           >/dev/null 2>&1 || true
       done
     fi

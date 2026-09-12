@@ -60,8 +60,10 @@ class Tray:
 
         self.menu = Gtk.Menu()
 
-        self.status_item = Gtk.MenuItem(label="Проверяю…")
+        self.status_item = Gtk.MenuItem()
         self.status_item.set_sensitive(False)
+        self.status_label = Gtk.Label(label="Проверяю…", xalign=0, use_markup=True)
+        self.status_item.add(self.status_label)
         self.menu.append(self.status_item)
 
         self.menu.append(Gtk.SeparatorMenuItem())
@@ -76,8 +78,8 @@ class Tray:
 
         self.menu.append(Gtk.SeparatorMenuItem())
 
-        quit_item = Gtk.MenuItem(label="Выход из трея")
-        quit_item.connect("activate", lambda *_: Gtk.main_quit())
+        quit_item = Gtk.MenuItem(label="Выход")
+        quit_item.connect("activate", self.on_quit)
         self.menu.append(quit_item)
 
         self.menu.show_all()
@@ -96,7 +98,7 @@ class Tray:
         status = get_status()
         if status is None or status.get("installed") is False:
             self.indicator.set_icon_full("vless-tunnel-unknown", "не настроено")
-            self.status_item.set_label("Туннель не настроен")
+            self.status_label.set_markup("Туннель не настроен")
             self.toggle_item.set_sensitive(False)
             return
         self.toggle_item.set_sensitive(True)
@@ -104,11 +106,14 @@ class Tray:
         server = status.get("server", "")
         if active:
             self.indicator.set_icon_full("vless-tunnel-on", "включён")
-            self.status_item.set_label(f"Туннель включён — {server}" if server else "Туннель включён")
+            markup = '<span color="#2e7d4f"><b>Туннель ON</b></span>'
+            if server:
+                markup += f"\n{GLib.markup_escape_text(server)}"
+            self.status_label.set_markup(markup)
             self.toggle_item.set_label("Выключить")
         else:
             self.indicator.set_icon_full("vless-tunnel-off", "выключен")
-            self.status_item.set_label("Туннель выключен")
+            self.status_label.set_markup('<span color="#b23a2e"><b>Туннель OFF</b></span>')
             self.toggle_item.set_label("Включить")
 
     def on_toggle(self, _item):
@@ -136,6 +141,12 @@ class Tray:
         # running this just re-presents its existing window instead of
         # starting a second copy.
         subprocess.Popen([APP_BIN, "gui"], start_new_session=True)
+
+    def on_quit(self, _item):
+        status = get_status()
+        if status and status.get("active"):
+            run(["off"], escalate=True)
+        Gtk.main_quit()
 
 
 def main():
