@@ -254,7 +254,7 @@ class SetLinkDialog(Adw.Window):
 class VlessTunnelWindow(Adw.ApplicationWindow):
     def __init__(self, app):
         super().__init__(application=app, title="VLESS Tunnel",
-                          default_width=400, default_height=467, resizable=False)
+                          default_width=400, resizable=False)
 
         toolbar = Adw.ToolbarView()
 
@@ -436,7 +436,7 @@ class VlessTunnelWindow(Adw.ApplicationWindow):
         add_row("text-x-generic-symbolic", "Показать журнал", self.action_logs)
         add_row("utilities-system-monitor-symbolic", "Диагностика", self.action_doctor)
         box.append(Gtk.Separator(margin_top=4, margin_bottom=4))
-        add_row("user-trash-symbolic", "Удалить полностью (включая пакет)", self.action_uninstall, destructive=True)
+        add_row("user-trash-symbolic", "Удалить", self.action_uninstall, destructive=True)
 
         popover.set_child(box)
         return popover
