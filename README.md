@@ -39,7 +39,11 @@ sudo vless-tunnel
 ### Вариант 2 — сам скрипт (без пакета)
 
 ```bash
-# 1) Установка (спросит ссылку vless:// и один раз — пароль sudo; ядро скачает с GitHub)
+# скачать сам скрипт
+curl -fsSLO https://raw.githubusercontent.com/RamDll/vless-tunnel/main/vless-tunnel.sh
+chmod +x vless-tunnel.sh
+
+# Установка (спросит ссылку vless:// и один раз — пароль sudo; ядро скачает с GitHub)
 sudo ./vless-tunnel.sh
 ```
 
