@@ -12,11 +12,12 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
+from vless_tunnel_common import APP_BIN, run as _backend_run  # noqa: E402
+
 # Must exactly match the installed .desktop file's basename (see
 # packaging/desktop/) — otherwise GNOME can't find its Icon= entry for the
 # taskbar/alt-tab and falls back to a generated initials icon.
 APP_ID = "io.github.ramdll.VlessTunnel"
-APP_BIN = os.environ.get("VLESS_APP_BIN", "vless-tunnel")
 _DEMO_MODE = os.environ.get("VLESS_GUI_DEMO", "")
 DEMO = _DEMO_MODE in ("1", "onboarding")
 
@@ -38,35 +39,11 @@ DEMO_IP = {"live": "203.0.113.45", "direct": "185.71.9.201"}
 
 # ------------------------------------------------------------------ backend
 def run(args, input_text=None, timeout=30, escalate=True):
-    """Run `sudo -n vless-tunnel <args>`, return (rc, stdout, stderr).
-
-    Everyday commands work silently once `install` has written the NOPASSWD
-    sudoers rule. Before that (first run, or if the rule is missing for any
-    reason), `sudo -n` refuses to even start the command — the exact wording
-    varies ("a password is required", "interactive authentication is
-    required", ...), but sudo's own refusals are always prefixed "sudo:",
-    unlike output from vless-tunnel itself. When `escalate` is true we treat
-    any such refusal as "needs a graphical prompt" and retry once through
-    `pkexec`.
-    """
+    """Demo-mode dispatch, else defers entirely to vless_tunnel_common.run —
+    see that module for the actual sudo/pkexec escalation logic."""
     if DEMO:
         return _demo_run(args, input_text)
-    cmd = ["sudo", "-n", APP_BIN, *args]
-    try:
-        p = subprocess.run(
-            cmd, input=input_text, capture_output=True, text=True, timeout=timeout
-        )
-    except Exception as exc:  # noqa: BLE001
-        return 1, "", str(exc)
-    if escalate and p.returncode != 0 and (p.stderr or "").strip().startswith("sudo:"):
-        try:
-            p = subprocess.run(
-                ["pkexec", APP_BIN, *args],
-                input=input_text, capture_output=True, text=True, timeout=max(timeout, 180),
-            )
-        except Exception as exc:  # noqa: BLE001
-            return 1, "", str(exc)
-    return p.returncode, p.stdout, p.stderr
+    return _backend_run(args, input_text=input_text, timeout=timeout, escalate=escalate)
 
 
 def _demo_run(args, input_text):

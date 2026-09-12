@@ -27,7 +27,7 @@
 set -Eeuo pipefail
 
 readonly APP="vless-tunnel"
-readonly APP_VERSION="1.2.2"
+readonly APP_VERSION="1.2.3"
 readonly APP_BUILD="2026-09-12"
 readonly PREFIX_DIR="/opt/vless-tunnel"
 readonly BIN_DIR="$PREFIX_DIR/bin"
@@ -49,6 +49,12 @@ readonly DEF_SOCKS_PORT=10808
 readonly DEF_HTTP_PORT=10809
 readonly DEF_TPROXY_PORT=12345
 readonly DEF_LOG_LEVEL="warning"
+# Single source of truth for "private/LAN, don't proxy" ranges (RFC 1918 +
+# friends). Consumed directly by tproxy_up()'s iptables rules below, and
+# passed to the Python backend via env (see py_backend()) so the routing
+# config it writes can't silently drift from what iptables actually excludes.
+readonly PRIVATE_CIDRS_V4="0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.0.0.0/24 192.0.2.0/24 192.168.0.0/16 198.18.0.0/15 198.51.100.0/24 203.0.113.0/24 224.0.0.0/4 240.0.0.0/4"
+readonly PRIVATE_CIDRS_V6="::1/128 fc00::/7 fe80::/10 ff00::/8"
 readonly NATIVE_GUI_PY="/usr/lib/vless-tunnel/vless-tunnel-gui.py"   # ставится .deb-пакетом
 readonly VENDOR_CORE="/usr/lib/vless-tunnel/xray"                    # ядро, зашитое в .deb
 
@@ -270,15 +276,15 @@ marker_value() { awk -F= -v k="$1" '$1==k{print $2}' "$RULES_MARKER" 2>/dev/null
 #  Python-бэкенд: разбор ссылки vless://, сборка config.json/state.json
 #-------------------------------------------------------------------------------
 py_backend() {
-  python3 - "$@" <<'PYEOF'
+  VLESS_PRIVATE4="$PRIVATE_CIDRS_V4" VLESS_PRIVATE6="$PRIVATE_CIDRS_V6" python3 - "$@" <<'PYEOF'
 # -*- coding: utf-8 -*-
 import json, os, re, sys, urllib.parse, datetime
 
-PRIVATE4 = ["0.0.0.0/8", "10.0.0.0/8", "100.64.0.0/10", "127.0.0.0/8",
-            "169.254.0.0/16", "172.16.0.0/12", "192.0.0.0/24", "192.0.2.0/24",
-            "192.168.0.0/16", "198.18.0.0/15", "198.51.100.0/24",
-            "203.0.113.0/24", "224.0.0.0/4", "240.0.0.0/4"]
-PRIVATE6 = ["::1/128", "fc00::/7", "fe80::/10", "ff00::/8"]
+# Passed in by py_backend() from the bash-side PRIVATE_CIDRS_V4/V6 constants
+# — the single source of truth also used by tproxy_up()'s iptables rules,
+# so this list can't silently drift from what iptables actually excludes.
+PRIVATE4 = os.environ["VLESS_PRIVATE4"].split()
+PRIVATE6 = os.environ["VLESS_PRIVATE6"].split()
 
 NETWORKS = ("tcp", "raw", "ws", "grpc", "http", "h2", "quic", "kcp",
             "httpupgrade", "xhttp", "splithttp")
@@ -1339,9 +1345,7 @@ tproxy_up() {
   add_rule ipt mangle "$CHAIN_MARK" -p udp --dport 53 -j MARK --set-mark "$FWMARK"
   if [ "$exclude_lan" = "true" ]; then
     local cidr
-    for cidr in 0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 \
-                172.16.0.0/12 192.0.0.0/24 192.0.2.0/24 192.168.0.0/16 198.18.0.0/15 \
-                198.51.100.0/24 203.0.113.0/24 224.0.0.0/4 240.0.0.0/4; do
+    for cidr in $PRIVATE_CIDRS_V4; do
       add_rule ipt mangle "$CHAIN_MARK" -d "$cidr" -j RETURN
     done
   fi
@@ -1398,10 +1402,10 @@ tproxy_up() {
     add_rule ipt6 mangle "$CHAIN_MARK" -p tcp --dport 53 -j MARK --set-mark "$FWMARK"
     add_rule ipt6 mangle "$CHAIN_MARK" -p udp --dport 53 -j MARK --set-mark "$FWMARK"
     if [ "$exclude_lan" = "true" ]; then
-      add_rule ipt6 mangle "$CHAIN_MARK" -d ::1/128 -j RETURN
-      add_rule ipt6 mangle "$CHAIN_MARK" -d fe80::/10 -j RETURN
-      add_rule ipt6 mangle "$CHAIN_MARK" -d fc00::/7 -j RETURN
-      add_rule ipt6 mangle "$CHAIN_MARK" -d ff00::/8 -j RETURN
+      local cidr6
+      for cidr6 in $PRIVATE_CIDRS_V6; do
+        add_rule ipt6 mangle "$CHAIN_MARK" -d "$cidr6" -j RETURN
+      done
     fi
     add_rule ipt6 mangle "$CHAIN_MARK" -p tcp -j MARK --set-mark "$FWMARK"
     add_rule ipt6 mangle "$CHAIN_MARK" -p udp -j MARK --set-mark "$FWMARK"

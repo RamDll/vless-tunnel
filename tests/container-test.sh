@@ -99,7 +99,10 @@ dex bash -c 'export DEBIAN_FRONTEND=noninteractive
   id -u vless >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin --comment "vless-tunnel service user" vless
   id -u vlserver >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin vlserver' >/dev/null
 ok "установлено: $(dex iptables --version), $(dex python3 -V 2>&1), vless uid=$(dex id -u vless)"
-dex bash -c 'sed -n "/^py_backend() {/,/^PYEOF\$/p" /root/vless-tunnel.sh | sed "1,2d;\$d" > /root/py.py'
+dex bash -c 'sed -n "/^py_backend() {/,/^PYEOF\$/p" /root/vless-tunnel.sh | sed "1,2d;\$d" > /root/py.py
+  v4=$(grep -oP "readonly PRIVATE_CIDRS_V4=\"\K[^\"]+" /root/vless-tunnel.sh)
+  v6=$(grep -oP "readonly PRIVATE_CIDRS_V6=\"\K[^\"]+" /root/vless-tunnel.sh)
+  sed -i "1i import os as _os; _os.environ.setdefault(\"VLESS_PRIVATE4\", \"$v4\"); _os.environ.setdefault(\"VLESS_PRIVATE6\", \"$v6\")" /root/py.py'
 ok "python-бэкенд извлечён из скрипта ($(dex sh -c 'wc -l < /root/py.py') строк)"
 
 say "3. подготовка стенда"

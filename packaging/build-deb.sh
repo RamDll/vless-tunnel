@@ -41,6 +41,7 @@ install -m 0755 "$ROOT/vless-tunnel.sh" "$STAGE/usr/bin/vless-tunnel"
 install -d -m 0755 "$STAGE/usr/lib/vless-tunnel"
 install -m 0755 "$ROOT/gui/vless-tunnel-gui.py" "$STAGE/usr/lib/vless-tunnel/vless-tunnel-gui.py"
 install -m 0755 "$ROOT/gui/vless-tunnel-tray.py" "$STAGE/usr/lib/vless-tunnel/vless-tunnel-tray.py"
+install -m 0644 "$ROOT/gui/vless_tunnel_common.py" "$STAGE/usr/lib/vless-tunnel/vless_tunnel_common.py"
 install -m 0755 "$XRAY_BIN" "$STAGE/usr/lib/vless-tunnel/xray"
 
 install -d -m 0755 "$STAGE/usr/share/applications"

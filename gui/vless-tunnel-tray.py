@@ -8,7 +8,6 @@ status and does a quick on/off toggle + opens the main window for everything
 else — no logic is duplicated beyond a minimal status/on/off call.
 """
 import json
-import os
 import subprocess
 import threading
 
@@ -18,25 +17,10 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("AyatanaAppIndicator3", "0.1")
 from gi.repository import AyatanaAppIndicator3 as AppIndicator, GLib, Gtk  # noqa: E402
 
-APP_BIN = os.environ.get("VLESS_APP_BIN", "vless-tunnel")
+from vless_tunnel_common import APP_BIN, run  # noqa: E402
+
 APP_ID = "vless-tunnel-tray"
 POLL_SECONDS = 5
-
-
-def run(args, timeout=15, escalate=False):
-    """Same sudo-then-pkexec pattern as the main GUI, kept minimal here."""
-    cmd = ["sudo", "-n", APP_BIN, *args]
-    try:
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-    except Exception as exc:  # noqa: BLE001
-        return 1, "", str(exc)
-    if escalate and p.returncode != 0 and (p.stderr or "").strip().startswith("sudo:"):
-        try:
-            p = subprocess.run(["pkexec", APP_BIN, *args],
-                                capture_output=True, text=True, timeout=max(timeout, 180))
-        except Exception as exc:  # noqa: BLE001
-            return 1, "", str(exc)
-    return p.returncode, p.stdout, p.stderr
 
 
 def get_status():
