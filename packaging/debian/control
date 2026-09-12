@@ -4,9 +4,9 @@ Section: net
 Priority: optional
 Architecture: amd64
 Maintainer: RamDll <ramdll7@gmail.com>
-Depends: bash, python3, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, curl, iptables, iproute2, ca-certificates, openssl, procps, util-linux, sudo, adwaita-icon-theme, policykit-1 | polkitd
+Depends: bash, python3, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gir1.2-gtk-3.0, gir1.2-ayatanaappindicator3-0.1, curl, iptables, iproute2, ca-certificates, openssl, procps, util-linux, sudo, adwaita-icon-theme, policykit-1 | polkitd
 Recommends: zenity
-Homepage: https://github.com/
+Homepage: https://github.com/RamDll/vless-tunnel
 Description: Transparent VLESS tunnel for the whole system (Xray-core)
  vless-tunnel routes all TCP and UDP traffic (including QUIC/HTTP-3)
  through a VLESS server via Xray-core, using transparent TPROXY

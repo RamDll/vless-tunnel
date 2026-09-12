@@ -40,10 +40,14 @@ install -m 0755 "$ROOT/vless-tunnel.sh" "$STAGE/usr/bin/vless-tunnel"
 
 install -d -m 0755 "$STAGE/usr/lib/vless-tunnel"
 install -m 0755 "$ROOT/gui/vless-tunnel-gui.py" "$STAGE/usr/lib/vless-tunnel/vless-tunnel-gui.py"
+install -m 0755 "$ROOT/gui/vless-tunnel-tray.py" "$STAGE/usr/lib/vless-tunnel/vless-tunnel-tray.py"
 install -m 0755 "$XRAY_BIN" "$STAGE/usr/lib/vless-tunnel/xray"
 
 install -d -m 0755 "$STAGE/usr/share/applications"
 install -m 0644 "$PKG_DIR/desktop/vless-tunnel.desktop" "$STAGE/usr/share/applications/vless-tunnel.desktop"
+
+install -d -m 0755 "$STAGE/etc/xdg/autostart"
+install -m 0644 "$PKG_DIR/desktop/vless-tunnel-tray.desktop" "$STAGE/etc/xdg/autostart/vless-tunnel-tray.desktop"
 
 while IFS= read -r -d '' png; do
   rel="${png#"$PKG_DIR"/icons/}"
