@@ -432,7 +432,7 @@ class VlessTunnelWindow(Adw.ApplicationWindow):
             box.append(btn)
 
         add_row("network-server-symbolic", "Сменить сервер", self.action_set_link)
-        add_row("network-transmit-receive-symbolic", "Проверить соединение", self.action_test)
+        add_row("network-transmit-receive-symbolic", "Проверить туннель", self.action_test)
         add_row("text-x-generic-symbolic", "Показать журнал", self.action_logs)
         add_row("utilities-system-monitor-symbolic", "Диагностика", self.action_doctor)
         box.append(Gtk.Separator(margin_top=4, margin_bottom=4))
@@ -459,8 +459,8 @@ class VlessTunnelWindow(Adw.ApplicationWindow):
             TextViewer(self, "Не удалось установить", output).present()
 
     def action_test(self):
-        self._toast("Проверяю соединение…")
-        run_async(["test"], lambda rc, out, err: TextViewer(self, "Проверка соединения", out or err).present())
+        self._toast("Проверяю туннель…")
+        run_async(["test"], lambda rc, out, err: TextViewer(self, "Проверка туннеля", out or err).present())
 
     def action_logs(self):
         run_async(["logs", "--lines", "200"],
