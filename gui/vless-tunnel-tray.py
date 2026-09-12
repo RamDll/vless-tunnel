@@ -10,6 +10,7 @@ else — no logic is duplicated beyond a minimal status/on/off call.
 import json
 import os
 import subprocess
+import threading
 
 import gi
 
@@ -48,6 +49,31 @@ def get_status():
         return None
 
 
+def run_async(args, on_done, timeout=15, escalate=False):
+    def worker():
+        rc, out, err = run(args, timeout=timeout, escalate=escalate)
+        GLib.idle_add(on_done, rc, out, err)
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
+def show_text_dialog(title, body):
+    dlg = Gtk.Dialog(title=title)
+    dlg.set_default_size(560, 420)
+    dlg.add_button("Закрыть", Gtk.ResponseType.CLOSE)
+    scroller = Gtk.ScrolledWindow()
+    scroller.set_hexpand(True)
+    scroller.set_vexpand(True)
+    view = Gtk.TextView(editable=False, cursor_visible=False, monospace=True,
+                         left_margin=8, right_margin=8, top_margin=8, bottom_margin=8)
+    view.get_buffer().set_text(body or "(пусто)")
+    scroller.add(view)
+    box = dlg.get_content_area()
+    box.pack_start(scroller, True, True, 0)
+    dlg.show_all()
+    dlg.connect("response", lambda d, _r: d.destroy())
+
+
 class Tray:
     def __init__(self):
         self.indicator = AppIndicator.Indicator.new(
@@ -75,6 +101,19 @@ class Tray:
         open_item = Gtk.MenuItem(label="Открыть окно")
         open_item.connect("activate", self.on_open_window)
         self.menu.append(open_item)
+
+        more_item = Gtk.MenuItem(label="Ещё")
+        more_menu = Gtk.Menu()
+        for label, args, title in (
+            ("Проверить туннель", ["test"], "Проверка туннеля"),
+            ("Показать журнал", ["logs", "--lines", "200"], "Журнал"),
+            ("Диагностика", ["doctor"], "Диагностика"),
+        ):
+            sub = Gtk.MenuItem(label=label)
+            sub.connect("activate", self._make_report_handler(args, title))
+            more_menu.append(sub)
+        more_item.set_submenu(more_menu)
+        self.menu.append(more_item)
 
         self.menu.append(Gtk.SeparatorMenuItem())
 
@@ -128,13 +167,21 @@ class Tray:
             run([cmd], escalate=True)
             GLib.idle_add(self._after_toggle)
 
-        import threading
         threading.Thread(target=worker, daemon=True).start()
 
     def _after_toggle(self):
         self._busy = False
         self.toggle_item.set_sensitive(True)
         self.refresh()
+
+    def _make_report_handler(self, args, title):
+        def handler(_item):
+            def done(rc, out, err):
+                show_text_dialog(title, out or err)
+
+            run_async(args, done)
+
+        return handler
 
     def on_open_window(self, _item):
         # The main GUI is a single-instance Adw.Application: if it's already
