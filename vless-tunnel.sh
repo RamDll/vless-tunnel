@@ -27,7 +27,7 @@
 set -Eeuo pipefail
 
 readonly APP="vless-tunnel"
-readonly APP_VERSION="1.2.0"
+readonly APP_VERSION="1.2.1"
 readonly APP_BUILD="2026-09-12"
 readonly PREFIX_DIR="/opt/vless-tunnel"
 readonly BIN_DIR="$PREFIX_DIR/bin"
@@ -1773,7 +1773,15 @@ cmd_install() {
     [ -z "$users" ] && users="$(logname 2>/dev/null || true)"
   fi
   write_sudoers "$users"
-  write_desktop_file
+  if [ -f "$NATIVE_GUI_PY" ]; then
+    # Installed via .deb: the package already ships a proper desktop file
+    # (with our real icon, correctly matched to the GTK app's id). Writing
+    # our own here as well would just create a duplicate menu entry with a
+    # generic icon.
+    info "ярлык уже предоставлен пакетом — пропускаю"
+  else
+    write_desktop_file
+  fi
   systemd-analyze verify "$SVC_UNIT" >/dev/null 2>&1 || warn "systemd-analyze verify нашёл замечания к unit-файлу"
   if [ "$OPT_AUTOSTART" != "yes" ]; then
     info "автозапуск не включаю — туннель поднимается только вручную (по умолчанию)"
