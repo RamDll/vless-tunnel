@@ -27,7 +27,7 @@
 set -Eeuo pipefail
 
 readonly APP="vless-tunnel"
-readonly APP_VERSION="1.2.1"
+readonly APP_VERSION="1.2.2"
 readonly APP_BUILD="2026-09-12"
 readonly PREFIX_DIR="/opt/vless-tunnel"
 readonly BIN_DIR="$PREFIX_DIR/bin"
@@ -121,7 +121,7 @@ require_root() { [ "$(id -u)" -eq 0 ] || die "нужны права root"; }
 confirm() { # confirm "вопрос" [default(y/n)]
   local q="$1" def="${2:-y}" ans
   [ "$OPT_YES" = "yes" ] && return 0
-  [ -t 0 ] || return 0
+  [ -t 0 ] || { [ "$def" = "y" ]; return $?; }
   if [ "$def" = "y" ]; then printf '%s [Y/n]: ' "$q"; else printf '%s [y/N]: ' "$q"; fi
   read -r ans || ans=""
   ans="${ans,,}"
@@ -200,7 +200,7 @@ detect_conflicts() {
     warn "в iptables (mangle) уже есть чужие правила TPROXY"
     found=1
   fi
-  if iptables -t nat -S 2>/dev/null | grep -E '\-j REDIRECT' | grep -qv "$CHAIN_TCP"; then
+  if iptables -t nat -S 2>/dev/null | grep -q -- '-j REDIRECT'; then
     warn "в iptables (nat) уже есть чужие правила REDIRECT"
     found=1
   fi
@@ -1205,7 +1205,6 @@ apply_link() { # $1 = ссылка; $2 = restart|start|none (по умолчан
     die "ядро Xray отвергло конфигурацию (см. вывод выше)"
   fi
   ok "конфигурация проверена ядром Xray"
-  rm -f "$bak_cfg" "$bak_state"
 
   case "$action" in
     restart)
@@ -1217,6 +1216,7 @@ apply_link() { # $1 = ссылка; $2 = restart|start|none (по умолчан
           warn "новый сервер не отвечает — возвращаю прежнюю конфигурацию"
           [ -n "$bak_cfg" ] && install -m 0640 -o root -g "$SVC_USER" "$bak_cfg" "$CONFIG_FILE"
           [ -n "$bak_state" ] && install -m 0600 -o root -g root "$bak_state" "$STATE_FILE"
+          rm -f "$bak_cfg" "$bak_state"
           systemctl restart "$SVC_NAME.service" 2>/dev/null || true
           return 1
         fi
@@ -1225,13 +1225,13 @@ apply_link() { # $1 = ссылка; $2 = restart|start|none (по умолчан
       systemctl restart "$SVC_NAME.service" 2>/dev/null || systemctl start "$SVC_NAME.service" || true
       sleep 1 ;;
   esac
+  rm -f "$bak_cfg" "$bak_state"
   return 0
 }
 
 #-------------------------------------------------------------------------------
 #  Прозрачное проксирование: правила iptables + policy routing
 #-------------------------------------------------------------------------------
-CHAIN_TCP="VLESS_TCP"        # nat: REDIRECT TCP
 CHAIN_MARK="VLESS_MARK"      # mangle: MARK UDP
 CHAIN_TPROXY="VLESS_TPROXY"  # mangle: TPROXY UDP
 CHAIN_V6BLOCK="VLESS_V6BLOCK"
@@ -1427,15 +1427,12 @@ tproxy_down() {
     mf=$(marker_value FWMARK)
     rt=$(marker_value RT_TABLE)
   fi
-  iptables -t nat -S "$CHAIN_TCP" >/dev/null 2>&1 && own="yes"
   read_net_params
   [ -n "$mf" ] && FWMARK="$mf"
   [ -n "$rt" ] && RT_TABLE="$rt"
 
-  del_chain_everywhere ipt nat "$CHAIN_TCP"
   del_chain_everywhere ipt mangle "$CHAIN_MARK"
   del_chain_everywhere ipt mangle "$CHAIN_TPROXY"
-  del_chain_everywhere ipt6 nat "$CHAIN_TCP"
   del_chain_everywhere ipt6 mangle "$CHAIN_MARK"
   del_chain_everywhere ipt6 mangle "$CHAIN_TPROXY"
   del_chain_everywhere ipt6 filter "$CHAIN_V6BLOCK"
@@ -1524,7 +1521,7 @@ write_sudoers() {
   {
     echo "# Управление $APP без пароля sudo. Создано автоматически."
     echo "# Удалить: sudo rm $SUDOERS_FILE"
-    for u in $users; do
+    for u in ${users//,/ }; do
       printf '%s ALL=(root) NOPASSWD: %s menu, %s on, %s off, %s toggle, %s restart, %s status, %s status --json, %s test, %s logs, %s logs --lines *, %s set-link, %s set-link --stdin, %s set-link --link-stdin, %s self-update, %s autostart, %s autostart on, %s autostart off, %s doctor, %s update-core, %s uninstall, %s uninstall --yes\n' \
         "$u" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH" "$SELF_PATH"
     done
@@ -2118,7 +2115,7 @@ cmd_doctor() {
   fi
   log "-- Xray: $([ -x "$BIN_DIR/xray" ] && "$BIN_DIR/xray" version | head -1 || echo 'не установлен')"
   log "-- Служба: $(systemctl is-active "$SVC_NAME.service" 2>/dev/null) / автозапуск: $(systemctl is-enabled "$SVC_NAME.service" 2>/dev/null)"
-  log "-- Правила nat: $(iptables -t nat -S OUTPUT 2>/dev/null | grep -c "$CHAIN_TCP") | mangle: $(iptables -t mangle -S OUTPUT 2>/dev/null | grep -c "$CHAIN_MARK")"
+  log "-- Правила mangle: $(iptables -t mangle -S OUTPUT 2>/dev/null | grep -c "$CHAIN_MARK")"
   read_net_params
   log "-- policy routing: fwmark $FWMARK, таблица $RT_TABLE (маркер: $([ -f "$RULES_MARKER" ] && echo есть || echo нет))"
   log "-- ip rule по нашему fwmark: $(ip rule show 2>/dev/null | grep -cE "fwmark ${FWMARK}([^0-9a-f]|\$)")"

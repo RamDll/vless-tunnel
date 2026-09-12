@@ -139,7 +139,16 @@ class Tray:
         return True  # keep the timeout running
 
     def refresh(self):
-        status = get_status()
+        # get_status() shells out (sudo -n ...); never call it directly on
+        # the GTK main loop or a slow/contended call freezes the whole
+        # panel icon and menu until it returns.
+        def worker():
+            status = get_status()
+            GLib.idle_add(self._apply_status, status)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _apply_status(self, status):
         if status is None or status.get("installed") is False:
             self.indicator.set_icon_full("vless-tunnel-unknown", "не настроено")
             self.status_label.set_markup("Туннель не настроен")
@@ -166,15 +175,14 @@ class Tray:
             self.toggle_item.set_label("Включить")
 
     def on_toggle(self, _item):
-        status = get_status()
-        if status is None:
-            return
-        cmd = "off" if status.get("active") else "on"
         self._busy = True
         self.toggle_item.set_sensitive(False)
 
         def worker():
-            run([cmd], escalate=True)
+            status = get_status()
+            if status is not None:
+                cmd = "off" if status.get("active") else "on"
+                run([cmd], escalate=True)
             GLib.idle_add(self._after_toggle)
 
         threading.Thread(target=worker, daemon=True).start()
