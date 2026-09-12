@@ -254,7 +254,7 @@ class SetLinkDialog(Adw.Window):
 class VlessTunnelWindow(Adw.ApplicationWindow):
     def __init__(self, app):
         super().__init__(application=app, title="VLESS Tunnel",
-                          default_width=400, resizable=False)
+                          default_width=340, resizable=False)
 
         toolbar = Adw.ToolbarView()
 
@@ -590,7 +590,7 @@ class VlessTunnelWindow(Adw.ApplicationWindow):
 
     def _set_ip_label(self, ip, active):
         if ip:
-            self.ip_label.set_label(f"Внешний IP: {ip}" if active else f"Внешний IP (прямой): {ip}")
+            self.ip_label.set_label(f"Внешний IP: {ip}")
         else:
             self.ip_label.set_label("Внешний IP: не удалось проверить")
 
