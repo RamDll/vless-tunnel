@@ -17,6 +17,23 @@ case "$1" in
       echo "или откройте «VLESS Tunnel» в меню приложений."
       echo
     fi
+
+    # Включить и сразу запустить значок в трее для всех, кто уже вошёл в
+    # систему — не дожидаясь следующего входа. Лучшее старание: если сессий
+    # с рабочим столом нет (сервер, безголовая установка), просто ничего
+    # не делаем.
+    if command -v loginctl >/dev/null 2>&1; then
+      loginctl list-sessions --no-legend 2>/dev/null | while read -r _session uid user _rest; do
+        runtime_dir="/run/user/$uid"
+        [ -S "$runtime_dir/bus" ] || continue
+        su -s /bin/sh "$user" -c \
+          "XDG_RUNTIME_DIR='$runtime_dir' DBUS_SESSION_BUS_ADDRESS='unix:path=$runtime_dir/bus' systemctl --user daemon-reload" \
+          >/dev/null 2>&1 || true
+        su -s /bin/sh "$user" -c \
+          "XDG_RUNTIME_DIR='$runtime_dir' DBUS_SESSION_BUS_ADDRESS='unix:path=$runtime_dir/bus' systemctl --user enable --now vless-tunnel-tray.service" \
+          >/dev/null 2>&1 || true
+      done
+    fi
     ;;
 esac
 

@@ -46,8 +46,9 @@ install -m 0755 "$XRAY_BIN" "$STAGE/usr/lib/vless-tunnel/xray"
 install -d -m 0755 "$STAGE/usr/share/applications"
 install -m 0644 "$PKG_DIR/desktop/vless-tunnel.desktop" "$STAGE/usr/share/applications/vless-tunnel.desktop"
 
-install -d -m 0755 "$STAGE/etc/xdg/autostart"
-install -m 0644 "$PKG_DIR/desktop/vless-tunnel-tray.desktop" "$STAGE/etc/xdg/autostart/vless-tunnel-tray.desktop"
+install -d -m 0755 "$STAGE/usr/lib/systemd/user"
+install -m 0644 "$PKG_DIR/systemd-user/vless-tunnel-tray.service" \
+  "$STAGE/usr/lib/systemd/user/vless-tunnel-tray.service"
 
 while IFS= read -r -d '' png; do
   rel="${png#"$PKG_DIR"/icons/}"

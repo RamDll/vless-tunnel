@@ -56,6 +56,7 @@ class Tray:
         )
         self.indicator.set_status(AppIndicator.IndicatorStatus.ACTIVE)
         self.indicator.set_title("VLESS Tunnel")
+        self.indicator.set_label("VLESS", "VLESS")  # text next to the icon in the panel
 
         self.menu = Gtk.Menu()
 
