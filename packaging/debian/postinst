@@ -3,6 +3,33 @@ set -e
 
 case "$1" in
   configure)
+    # Migration for a bug fixed in 1.2.4: `sudo vless-tunnel` after a .deb
+    # install used to copy itself to /usr/local/bin and point the service/
+    # sudoers/watchdog there instead of at the real, dpkg-managed
+    # /usr/bin/vless-tunnel — so `apt upgrade` silently stopped taking
+    # effect (the running copy was never the one being updated). If that
+    # happened on this machine, repoint the generated files at /usr/bin and
+    # drop the stray copy; nothing here touches the actual tunnel config.
+    if [ -e /usr/local/bin/vless-tunnel ]; then
+      for f in /etc/systemd/system/vless-tunnel.service \
+               /etc/systemd/system/vless-tunnel-watchdog.service \
+               /etc/sudoers.d/vless-tunnel; do
+        [ -f "$f" ] || continue
+        sed -i 's#/usr/local/bin/vless-tunnel#/usr/bin/vless-tunnel#g' "$f"
+      done
+      if [ -f /etc/sudoers.d/vless-tunnel ]; then
+        chown root:root /etc/sudoers.d/vless-tunnel
+        chmod 0440 /etc/sudoers.d/vless-tunnel
+        if command -v visudo >/dev/null 2>&1; then
+          visudo -cf /etc/sudoers.d/vless-tunnel >/dev/null 2>&1 || rm -f /etc/sudoers.d/vless-tunnel
+        fi
+      fi
+      rm -f /usr/local/bin/vless-tunnel
+      systemctl daemon-reload >/dev/null 2>&1 || true
+      echo "Обнаружена и исправлена устаревшая копия скрипта в /usr/local/bin —"
+      echo "служба и sudo-правило теперь указывают на /usr/bin/vless-tunnel."
+    fi
+
     if command -v update-desktop-database >/dev/null 2>&1; then
       update-desktop-database -q /usr/share/applications || true
     fi

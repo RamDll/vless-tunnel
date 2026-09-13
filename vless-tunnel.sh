@@ -27,13 +27,27 @@
 set -Eeuo pipefail
 
 readonly APP="vless-tunnel"
-readonly APP_VERSION="1.2.3"
+readonly APP_VERSION="1.2.4"
 readonly APP_BUILD="2026-09-12"
 readonly PREFIX_DIR="/opt/vless-tunnel"
 readonly BIN_DIR="$PREFIX_DIR/bin"
 readonly ETC_DIR="/etc/vless-tunnel"
 readonly LOG_DIR="/var/log/vless-tunnel"
-readonly SELF_PATH="/usr/local/bin/vless-tunnel"
+# Where the systemd units, sudoers rule and desktop file all point at.
+# If we're already running from a recognised installed location (the .deb
+# puts the script at /usr/bin/vless-tunnel; a from-source install ends up
+# at /usr/local/bin/vless-tunnel), stay there — copying ourselves to the
+# other one would leave two copies on disk, with the service/sudoers/self-
+# update all pinned to whichever one happened to be created first. A future
+# `apt upgrade` only refreshes /usr/bin, so the copy actually executed by
+# the running service would silently keep running the old code forever.
+_self_resolved=$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")
+case "$_self_resolved" in
+  "/usr/bin/$APP"|"/usr/local/bin/$APP") SELF_PATH="$_self_resolved" ;;
+  *) SELF_PATH="/usr/local/bin/$APP" ;;
+esac
+readonly SELF_PATH
+unset _self_resolved
 readonly STATE_FILE="$ETC_DIR/state.json"
 readonly CONFIG_FILE="$ETC_DIR/config.json"
 readonly SVC_NAME="vless-tunnel"
