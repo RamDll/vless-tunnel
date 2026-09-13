@@ -27,7 +27,7 @@
 set -Eeuo pipefail
 
 readonly APP="vless-tunnel"
-readonly APP_VERSION="1.2.4"
+readonly APP_VERSION="1.2.5"
 readonly APP_BUILD="2026-09-12"
 readonly PREFIX_DIR="/opt/vless-tunnel"
 readonly BIN_DIR="$PREFIX_DIR/bin"
@@ -2273,7 +2273,15 @@ cmd_uninstall() {
   else
     rm -rf "$ETC_DIR" "$PREFIX_DIR" "$LOG_DIR"
   fi
-  rm -f "$SELF_PATH"
+  if have dpkg && dpkg -S "$SELF_PATH" >/dev/null 2>&1; then
+    # Installed via .deb: SELF_PATH is /usr/bin/vless-tunnel, a file dpkg
+    # owns and tracks. Removing it here would desync dpkg's database from
+    # the filesystem (package still "installed" per dpkg, binary gone) —
+    # let `apt purge` remove it as part of the package instead.
+    info "$SELF_PATH принадлежит пакету — оставляю (уберётся через apt purge)"
+  else
+    rm -f "$SELF_PATH"
+  fi
   rmdir /run/vless-tunnel 2>/dev/null || true
   if id -u "$SVC_USER" >/dev/null 2>&1; then
     if [ "$OPT_PURGE_USER" != "yes" ] || [ "$OPT_KEEP_USER" = "yes" ]; then
