@@ -163,12 +163,17 @@ class Tray:
         self.toggle_item.set_sensitive(False)
 
         def worker():
-            rc, out, err = run(["toggle"], escalate=True)
+            # cmd_on's worst case (systemctl start + sleep 1 + up to two
+            # `curl --max-time 15` probes) can exceed the default 30s —
+            # give it room so sudo doesn't get killed before the script
+            # reaches its own safety `systemctl stop` on failure.
+            rc, out, err = run(["toggle"], escalate=True, timeout=90)
 
             def after():
                 self._after_toggle()
                 if rc != 0:
-                    show_text_dialog("Не удалось переключить туннель", out or err)
+                    msg = "\n".join(s.strip() for s in (err, out) if s and s.strip())
+                    show_text_dialog("Не удалось переключить туннель", msg or f"код {rc}")
 
             GLib.idle_add(after)
 
