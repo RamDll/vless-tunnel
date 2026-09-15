@@ -1945,7 +1945,7 @@ status_json() {
     return 0
   fi
   python3 - "$STATE_FILE" "$active" "$enabled" "$is_inst" "$BIN_DIR/xray" <<'PY'
-import json, os, re, subprocess, sys
+import json, os, subprocess, sys
 path, active, enabled, installed, xbin = sys.argv[1:6]
 try:
     with open(path, encoding="utf-8") as f:
@@ -1957,27 +1957,48 @@ st["active"] = active == "true"
 st["enabled"] = enabled == "true"
 st["installed"] = installed == "true"
 
-# Prefer reading the version off the xray-<ver> symlink target so status
-# polling doesn't have to spawn the (Go) xray binary just to get its
-# version string. Falls back to `xray version` for non-standard targets
-# (e.g. a "xray-custom" binary installed via install-core-file).
-ver = ""
-try:
-    name = os.path.basename(os.readlink(xbin))
-    if name.startswith("xray-"):
-        name = name[len("xray-"):]
-    if name.startswith("v"):
-        name = name[1:]
-    if re.fullmatch(r"\d+(\.\d+)+", name):
-        ver = name
-except OSError:
-    pass
-if not ver:
+CACHE_FILE = "/run/vless-tunnel/core-version.json"
+
+def xray_version():
     try:
         out = subprocess.run([xbin, "version"], capture_output=True, text=True, timeout=5).stdout.splitlines()
-        ver = out[0].split()[1] if out else ""
+        return out[0].split()[1] if out else ""
     except Exception:
-        ver = ""
+        return ""
+
+# Cache the resolved version keyed on the target binary's identity (real
+# path + mtime/size/inode) so status polling only spawns the (Go) xray
+# binary when that identity actually changes (fresh install/update-core),
+# not on every poll. Any cache read/write hiccup just falls back to
+# calling `xray version` directly.
+ver = ""
+try:
+    real = os.path.realpath(xbin)
+    st_bin = os.stat(real)
+    key = [real, st_bin.st_mtime_ns, st_bin.st_size, st_bin.st_ino]
+    cached = None
+    try:
+        with open(CACHE_FILE, encoding="utf-8") as f:
+            cached = json.load(f)
+    except Exception:
+        cached = None
+    if isinstance(cached, dict) and cached.get("key") == key:
+        ver = cached.get("version", "")
+    else:
+        ver = xray_version()
+        try:
+            cache_dir = os.path.dirname(CACHE_FILE)
+            os.makedirs(cache_dir, mode=0o755, exist_ok=True)
+            os.chmod(cache_dir, 0o755)
+            tmp = f"{CACHE_FILE}.tmp{os.getpid()}"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump({"key": key, "version": ver}, f)
+            os.replace(tmp, CACHE_FILE)
+        except Exception:
+            pass
+except Exception:
+    ver = xray_version()
+
 st["core_running_version"] = ver
 print(json.dumps(st, ensure_ascii=False))
 PY
