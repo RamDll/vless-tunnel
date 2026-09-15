@@ -20,7 +20,7 @@ from gi.repository import AyatanaAppIndicator3 as AppIndicator, GLib, Gtk  # noq
 from vless_tunnel_common import APP_BIN, run  # noqa: E402
 
 APP_ID = "vless-tunnel-tray"
-POLL_SECONDS = 5
+POLL_SECONDS = 30
 
 
 def get_status():
@@ -163,10 +163,7 @@ class Tray:
         self.toggle_item.set_sensitive(False)
 
         def worker():
-            status = get_status()
-            if status is not None:
-                cmd = "off" if status.get("active") else "on"
-                run([cmd], escalate=True)
+            run(["toggle"], escalate=True)
             GLib.idle_add(self._after_toggle)
 
         threading.Thread(target=worker, daemon=True).start()

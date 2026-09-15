@@ -1945,7 +1945,7 @@ status_json() {
     return 0
   fi
   python3 - "$STATE_FILE" "$active" "$enabled" "$is_inst" "$BIN_DIR/xray" <<'PY'
-import json, subprocess, sys
+import json, os, re, subprocess, sys
 path, active, enabled, installed, xbin = sys.argv[1:6]
 try:
     with open(path, encoding="utf-8") as f:
@@ -1956,11 +1956,29 @@ st = {k: v for k, v in st.items() if k != "link"}
 st["active"] = active == "true"
 st["enabled"] = enabled == "true"
 st["installed"] = installed == "true"
+
+# Prefer reading the version off the xray-<ver> symlink target so status
+# polling doesn't have to spawn the (Go) xray binary just to get its
+# version string. Falls back to `xray version` for non-standard targets
+# (e.g. a "xray-custom" binary installed via install-core-file).
+ver = ""
 try:
-    out = subprocess.run([xbin, "version"], capture_output=True, text=True, timeout=5).stdout.splitlines()
-    st["core_running_version"] = out[0].split()[1] if out else ""
-except Exception:
-    st["core_running_version"] = ""
+    name = os.path.basename(os.readlink(xbin))
+    if name.startswith("xray-"):
+        name = name[len("xray-"):]
+    if name.startswith("v"):
+        name = name[1:]
+    if re.fullmatch(r"\d+(\.\d+)+", name):
+        ver = name
+except OSError:
+    pass
+if not ver:
+    try:
+        out = subprocess.run([xbin, "version"], capture_output=True, text=True, timeout=5).stdout.splitlines()
+        ver = out[0].split()[1] if out else ""
+    except Exception:
+        ver = ""
+st["core_running_version"] = ver
 print(json.dumps(st, ensure_ascii=False))
 PY
 }
