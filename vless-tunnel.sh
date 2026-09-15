@@ -1986,16 +1986,24 @@ try:
         ver = cached.get("version", "")
     else:
         ver = xray_version()
-        try:
-            cache_dir = os.path.dirname(CACHE_FILE)
-            os.makedirs(cache_dir, mode=0o755, exist_ok=True)
-            os.chmod(cache_dir, 0o755)
-            tmp = f"{CACHE_FILE}.tmp{os.getpid()}"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump({"key": key, "version": ver}, f)
-            os.replace(tmp, CACHE_FILE)
-        except Exception:
-            pass
+        # Don't cache a blank result (e.g. a one-off `xray version` hiccup)
+        # — that would stick until the binary's identity changes again.
+        if ver:
+            tmp = None
+            try:
+                cache_dir = os.path.dirname(CACHE_FILE)
+                os.makedirs(cache_dir, mode=0o755, exist_ok=True)
+                os.chmod(cache_dir, 0o755)
+                tmp = f"{CACHE_FILE}.tmp{os.getpid()}"
+                with open(tmp, "w", encoding="utf-8") as f:
+                    json.dump({"key": key, "version": ver}, f)
+                os.replace(tmp, CACHE_FILE)
+            except Exception:
+                if tmp:
+                    try:
+                        os.unlink(tmp)
+                    except OSError:
+                        pass
 except Exception:
     ver = xray_version()
 
@@ -2321,6 +2329,7 @@ cmd_uninstall() {
   else
     rm -f "$SELF_PATH"
   fi
+  rm -f /run/vless-tunnel/core-version.json
   rmdir /run/vless-tunnel 2>/dev/null || true
   if id -u "$SVC_USER" >/dev/null 2>&1; then
     if [ "$OPT_PURGE_USER" != "yes" ] || [ "$OPT_KEEP_USER" = "yes" ]; then

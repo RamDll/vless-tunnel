@@ -421,6 +421,7 @@ libadwaita, `policykit-1` для GUI) подтягиваются через `apt
 | `/etc/systemd/system/vless-tunnel-watchdog.{service,timer}` | автовосстановление правил |
 | `/etc/sudoers.d/vless-tunnel` | правило NOPASSWD |
 | `/run/vless-tunnel/net` | пометка: какие записи policy routing создал скрипт (чтобы не удалить чужие) |
+| `/run/vless-tunnel/core-version.json` | кэш версии запущенного ядра Xray для `status --json` (переживает опрос, не переживает перезагрузку) |
 | `/usr/share/applications/vless-tunnel.desktop` | ярлык в меню приложений |
 | `/usr/share/icons/hicolor/*/apps/vless-tunnel.*` | иконка (только из `.deb`) |
 | `/var/log/vless-tunnel/` | логи (если `--access-log`) |

@@ -163,8 +163,14 @@ class Tray:
         self.toggle_item.set_sensitive(False)
 
         def worker():
-            run(["toggle"], escalate=True)
-            GLib.idle_add(self._after_toggle)
+            rc, out, err = run(["toggle"], escalate=True)
+
+            def after():
+                self._after_toggle()
+                if rc != 0:
+                    show_text_dialog("Не удалось переключить туннель", out or err)
+
+            GLib.idle_add(after)
 
         threading.Thread(target=worker, daemon=True).start()
 
