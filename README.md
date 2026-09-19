@@ -25,8 +25,8 @@
 
 ```bash
 # скачать готовый пакет из Releases
-wget https://github.com/RamDll/vless-tunnel/releases/latest/download/vless-tunnel_1.2.9_amd64.deb
-sudo apt install ./vless-tunnel_1.2.9_amd64.deb   # подтянет все зависимости сам
+wget https://github.com/RamDll/vless-tunnel/releases/latest/download/vless-tunnel_1.3.0_amd64.deb
+sudo apt install ./vless-tunnel_1.3.0_amd64.deb   # подтянет все зависимости сам
 
 # настройка (один раз, попросит ссылку vless:// и пароль sudo)
 sudo vless-tunnel
