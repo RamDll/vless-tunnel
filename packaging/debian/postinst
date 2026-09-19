@@ -53,8 +53,14 @@ case "$1" in
       loginctl list-sessions --no-legend 2>/dev/null | while read -r _session uid user _rest; do
         runtime_dir="/run/user/$uid"
         [ -S "$runtime_dir/bus" ] || continue
+        # Drop any enablement symlink left over from a previous package
+        # version's [Install] section (e.g. the 1.2.x default.target one
+        # replaced by graphical-session.target in 1.3.0): `enable` below
+        # only adds the current target's symlink, it doesn't remove stale
+        # ones, so a leftover would make the service start on the old
+        # target too and reintroduce the very race it was fixed for.
         su -s /bin/sh "$user" -c \
-          "XDG_RUNTIME_DIR='$runtime_dir' DBUS_SESSION_BUS_ADDRESS='unix:path=$runtime_dir/bus' systemctl --user daemon-reload" \
+          "find \"\$HOME/.config/systemd/user\" -maxdepth 2 -type l -name vless-tunnel-tray.service -delete 2>/dev/null; XDG_RUNTIME_DIR='$runtime_dir' DBUS_SESSION_BUS_ADDRESS='unix:path=$runtime_dir/bus' systemctl --user daemon-reload" \
           >/dev/null 2>&1 || true
         su -s /bin/sh "$user" -c \
           "XDG_RUNTIME_DIR='$runtime_dir' DBUS_SESSION_BUS_ADDRESS='unix:path=$runtime_dir/bus' systemctl --user enable vless-tunnel-tray.service" \
