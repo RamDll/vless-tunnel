@@ -28,7 +28,7 @@ set -Eeuo pipefail
 
 readonly APP="vless-tunnel"
 readonly APP_VERSION="1.3.2"
-readonly APP_BUILD="2026-09-12"
+readonly APP_BUILD="2026-09-20"
 readonly PREFIX_DIR="/opt/vless-tunnel"
 readonly BIN_DIR="$PREFIX_DIR/bin"
 readonly ETC_DIR="/etc/vless-tunnel"
