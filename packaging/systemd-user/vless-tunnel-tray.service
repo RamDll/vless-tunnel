@@ -1,6 +1,14 @@
 [Unit]
 Description=Индикатор vless-tunnel в системном трее
 After=graphical-session.target
+# Without this, a GNOME Shell/compositor restart (Xwayland crash, session
+# recovery) tears down the display out from under this service while it
+# keeps running per Restart=on-failure. GTK3 then hits a fatal g_error()
+# ("Can't create a GtkStyleContext without a display connection") building
+# a widget with no display connection, which aborts the process — not
+# catchable in Python. PartOf stops the tray together with the session and
+# lets it restart only once the new session (and display) is actually up.
+PartOf=graphical-session.target
 
 [Service]
 Type=simple
