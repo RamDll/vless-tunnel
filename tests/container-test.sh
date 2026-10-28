@@ -256,6 +256,26 @@ if [ -z "$LINK" ] && [ "${INSTALL_TEST:-yes}" = "yes" ]; then
   printf '%s' "$OUT" | grep -q "выключаю перехват" && ok "скрипт предупредил и выключил перехват" || { bad "автоотключение не сработало"; FAILED=1; }
   printf '%s' "$OUT" | grep -q "RC=0" && { bad "'on' вернул успех при нерабочем туннеле"; FAILED=1; } || ok "'on' вернул ошибку (как и должен)"
   printf '%s' "$OUT" | grep -E '^(\[ok\]|\[!\]|\[x\])' | tail -3 | sed 's/^/      /'
+
+  say "12b. медленный старт ядра: 'on' ждёт, пока ядро откроет порты, а не сдаётся через секунду"
+  # install в шаге 11 сам делал _tproxy up, а снять их некому: systemctl там — заглушка
+  dex bash -c 'bash /root/vless-tunnel.sh _tproxy down >/dev/null 2>&1 || true'
+  dex bash -c 'cd /srv/vless && setsid setpriv --reuid=vlserver --regid=vlserver --init-groups \
+    /opt/xray run -c server.json >server.log 2>&1 </dev/null &'
+  # шаг 11 ставил конфиг при мёртвом сервере — без отпечатка сертификата; собираем как в шаге 4
+  dex env VLESS_LINK="$TEST_LINK" VLESS_OUT_CONFIG=/etc/vless-tunnel/config.json \
+      VLESS_OUT_STATE=/etc/vless-tunnel/state.json VLESS_SERVER_IPS="${SERVER_IPS:-}" \
+      VLESS_CORE_VERSION=v26.3.27 VLESS_CORE_FAMILY=modern VLESS_CERT_PIN="${PIN:-}" \
+      VLESS_SOCKS_PORT=10808 VLESS_HTTP_PORT=10809 VLESS_TPROXY_PORT=12345 \
+      VLESS_LOG_LEVEL=warning VLESS_EXCLUDE_USERS="${EXCL_USERS:-}" python3 /root/py.py make >/dev/null
+  dex bash -c 'chmod 0644 /etc/vless-tunnel/*.json; setsid sh -c "sleep 4; exec setpriv --reuid=vless --regid=vless \
+    --init-groups --inh-caps +net_admin --ambient-caps +net_admin /opt/xray run -c /etc/vless-tunnel/config.json" \
+    >/root/cli.log 2>&1 </dev/null &'
+  OUT=$(dex bash -c 'bash /root/vless-tunnel.sh on 2>&1; echo "RC=$?"')
+  printf '%s' "$OUT" | grep -q "RC=0" && ok "'on' дождался ядра (старт через 4 с) и включил туннель" \
+    || { bad "'on' не дождался медленно стартующего ядра"; FAILED=1; dex tail -4 /root/cli.log | sed 's/^/      /'; }
+  printf '%s' "$OUT" | grep -E '^(\[ok\]|\[!\]|\[x\])' | tail -2 | sed 's/^/      /'
+  dex sh -c 'pkill -x xray || true'; sleep 1
 fi
 
 if [ -z "$LINK" ] && [ "${INSTALL_TEST:-yes}" = "yes" ]; then

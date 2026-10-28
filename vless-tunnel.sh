@@ -1919,9 +1919,17 @@ cmd_set_link() {
 }
 
 tunnel_works() { # 0 — туннель отвечает, 1 — нет; результат в TUNNEL_EXIT_IP
-  local socks http ip
+  local socks http ip i
   socks=$(state_get socks_port 2>/dev/null); socks="${socks:-$DEF_SOCKS_PORT}"
   http=$(state_get http_port 2>/dev/null);  http="${http:-$DEF_HTTP_PORT}"
+  # под нагрузкой ядро открывает порты не сразу после старта службы: без
+  # ожидания curl мгновенно получает «connection refused» и рабочий туннель
+  # объявляется мёртвым. Ждём до 10 с, пока служба жива.
+  for i in $(seq 1 20); do
+    { port_in_use "$socks" || port_in_use "$http"; } && break
+    svc_active || break
+    sleep 0.5
+  done
   ip=$(curl -s --max-time 15 --socks5-hostname "127.0.0.1:$socks" https://api.ipify.org 2>/dev/null || true)
   if [ -z "$ip" ]; then
     ip=$(curl -s --max-time 15 -x "http://127.0.0.1:$http" https://api.ipify.org 2>/dev/null || true)
