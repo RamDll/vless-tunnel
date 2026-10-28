@@ -212,7 +212,7 @@ vless-tunnel deps [--install]    проверить зависимости (--in
 vless-tunnel autostart on|off    включить/выключить автозапуск при загрузке
 vless-tunnel update-core         обновить ядро Xray (с откатом при неудаче)
 vless-tunnel doctor              диагностика окружения + вердикт
-vless-tunnel ensure              принудительно восстановить правила
+vless-tunnel ensure              восстановить правила, если их нет (целые не трогает)
 vless-tunnel self-update         обновить установленную копию скрипта
 sudo vless-tunnel sudoers        перезаписать правило «без пароля sudo»
 sudo vless-tunnel uninstall      сброс настройки (--keep-config, --keep-user)
@@ -289,6 +289,7 @@ sudo vless-tunnel uninstall      сброс настройки (--keep-config, -
   `--proxy-lan` заворачивает и их.
 * Таймер `vless-tunnel-watchdog.timer` раз в минуту проверяет целостность правил
   (их могут снести `ufw reload`, docker, другие VPN) и восстанавливает их.
+  Целые правила он не пересобирает: пересборка рвёт уже открытые соединения.
 
 Локальные прокси (для приложений, которые не хотят прозрачного перехвата):
 

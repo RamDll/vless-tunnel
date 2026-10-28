@@ -213,6 +213,11 @@ dex bash /root/vless-tunnel.sh _tproxy up >/dev/null
 R2=$(dex sh -c 'ip rule show | grep -c fwmark || true'); J2=$(dex sh -c 'iptables -t mangle -S PREROUTING | grep -c VLESS_TPROXY || true')
 note "ip rule: $R1 → $R2 | jump-правил: $J1 → $J2"
 check "правила не размножились" "$([ "$R1" = "$R2" ] && [ "$J1" = "$J2" ] && echo 0 || echo 1)"
+check "_tproxy check: правила целы" "$(dex bash /root/vless-tunnel.sh _tproxy check >/dev/null 2>&1 && echo 0 || echo 1)"
+dex iptables -t mangle -D PREROUTING -j VLESS_TPROXY
+check "_tproxy check: видит снесённый jump" "$(dex bash /root/vless-tunnel.sh _tproxy check >/dev/null 2>&1 && echo 1 || echo 0)"
+dex bash /root/vless-tunnel.sh _tproxy up >/dev/null
+check "_tproxy check: после up снова целы" "$(dex bash /root/vless-tunnel.sh _tproxy check >/dev/null 2>&1 && echo 0 || echo 1)"
 
 say "9. kill-switch: гасим ядро — прозрачный трафик не должен утечь напрямую"
 dex sh -c 'pkill -x xray || true'; sleep 1
@@ -226,6 +231,7 @@ note "ip rule fwmark после down: $(dex sh -c 'ip rule show | grep -c fwmark
 C=$(dex curl -s --max-time 15 -o /dev/null -w '%{http_code}' https://example.com || echo 000)
 note "curl после down → код $C"
 check "связь в контейнере восстановлена" "$([ "$C" != "000" ] && echo 0 || echo 1)"
+check "_tproxy check после down: правил нет" "$(dex bash /root/vless-tunnel.sh _tproxy check >/dev/null 2>&1 && echo 1 || echo 0)"
 
 if [ -z "$LINK" ] && [ "${INSTALL_TEST:-yes}" = "yes" ]; then
   say "11. установщик: фолбэк на уже установленное ядро при недоступном GitHub"

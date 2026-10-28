@@ -1435,6 +1435,41 @@ tproxy_up() {
   return 0
 }
 
+tproxy_family_ok() { # tproxy_family_ok <ipt|ipt6> <on-ip> <tproxy_port>
+  local tool="$1" on_ip="$2" port="$3" proto
+  "$tool" -t mangle -C OUTPUT -j "$CHAIN_MARK" 2>/dev/null || return 1
+  "$tool" -t mangle -C PREROUTING -j "$CHAIN_TPROXY" 2>/dev/null || return 1
+  for proto in tcp udp; do
+    "$tool" -t mangle -C "$CHAIN_MARK" -p "$proto" -j MARK --set-mark "$FWMARK" 2>/dev/null || return 1
+    "$tool" -t mangle -C "$CHAIN_TPROXY" -p "$proto" -m mark --mark "$FWMARK" \
+      -j TPROXY --on-ip "$on_ip" --on-port "$port" --tproxy-mark "$FWMARK" 2>/dev/null || return 1
+  done
+}
+
+tproxy_rules_ok() { # 0 = всё, что строит tproxy_up, на месте; ничего не меняет
+  # Нужна watchdog'у: tproxy_up пересобирает цепочки через -F, и пока правила
+  # пусты, пакеты уже открытых соединений уходят мимо TPROXY — соединения рвутся.
+  [ -f "$STATE_FILE" ] || return 1
+  local tproxy_port ipv6_mode
+  tproxy_port=$(state_get tproxy_port); tproxy_port="${tproxy_port:-$DEF_TPROXY_PORT}"
+  ipv6_mode=$(state_get ipv6_mode); ipv6_mode="${ipv6_mode:-proxy}"
+  read_net_params
+
+  ip rule show 2>/dev/null | grep -Eq "fwmark ${FWMARK}([^0-9a-f]|\$)" || return 1
+  ip route show table "$RT_TABLE" 2>/dev/null | grep -q '^local default dev lo' || return 1
+  tproxy_family_ok ipt 127.0.0.1 "$tproxy_port" || return 1
+
+  have ip6tables && [ -f /proc/net/if_inet6 ] || return 0
+  if [ "$ipv6_mode" = "block" ]; then
+    ipt6 -t filter -C OUTPUT -j "$CHAIN_V6BLOCK" 2>/dev/null || return 1
+    ipt6 -t filter -C "$CHAIN_V6BLOCK" -j REJECT --reject-with icmp6-adm-prohibited 2>/dev/null || return 1
+    return 0
+  fi
+  ip -6 rule show 2>/dev/null | grep -Eq "fwmark ${FWMARK}([^0-9a-f]|\$)" || return 1
+  ip -6 route show table "$RT_TABLE" 2>/dev/null | grep -q '^local default dev lo' || return 1
+  tproxy_family_ok ipt6 ::1 "$tproxy_port"
+}
+
 tproxy_down() {
   # Важно: iptables/IPv6-цепочки удаляем всегда (они наши по имени), а вот
   # policy routing (fwmark/таблица) — только если это действительно наши записи,
@@ -2163,6 +2198,11 @@ cmd_ensure() {
   require_root
   installed || return 0
   svc_active || return 0
+  # целые правила не пересобираем: это рвёт открытые соединения (см. tproxy_rules_ok)
+  if tproxy_rules_ok; then
+    [ -t 1 ] && ok "правила перехвата на месте — ничего не трогаю (пересобрать: $APP restart)"
+    return 0
+  fi
   tproxy_up
 }
 
@@ -2679,7 +2719,8 @@ main() {
       case "$TPROXY_ACTION" in
         up) tproxy_up ;;
         down) tproxy_down ;;
-        *) die "_tproxy up|down" ;;
+        check) tproxy_rules_ok ;;
+        *) die "_tproxy up|down|check" ;;
       esac ;;
     link-check)   # служебное: разобрать ссылку и показать сводку
       local _l; _l=$(ask_link)
